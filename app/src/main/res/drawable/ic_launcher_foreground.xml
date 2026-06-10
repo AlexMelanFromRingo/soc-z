@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <!-- Stylised "Z" inside a chip-die rectangle -->
+    <path android:fillColor="#14181F" android:strokeColor="#6FA8FF" android:strokeWidth="2"
+        android:pathData="M30,28 L78,28 L78,80 L30,80 Z" />
+    <!-- DIE pads -->
+    <path android:fillColor="#6FA8FF" android:pathData="M32,24 L36,24 L36,28 L32,28 Z" />
+    <path android:fillColor="#6FA8FF" android:pathData="M42,24 L46,24 L46,28 L42,28 Z" />
+    <path android:fillColor="#6FA8FF" android:pathData="M52,24 L56,24 L56,28 L52,28 Z" />
+    <path android:fillColor="#6FA8FF" android:pathData="M62,24 L66,24 L66,28 L62,28 Z" />
+    <path android:fillColor="#6FA8FF" android:pathData="M72,24 L76,24 L76,28 L72,28 Z" />
+    <path android:fillColor="#6FA8FF" android:pathData="M32,80 L36,80 L36,84 L32,84 Z" />
+    <path android:fillColor="#6FA8FF" android:pathData="M42,80 L46,80 L46,84 L42,84 Z" />
+    <path android:fillColor="#6FA8FF" android:pathData="M52,80 L56,80 L56,84 L52,84 Z" />
+    <path android:fillColor="#6FA8FF" android:pathData="M62,80 L66,80 L66,84 L62,84 Z" />
+    <path android:fillColor="#6FA8FF" android:pathData="M72,80 L76,80 L76,84 L72,84 Z" />
+    <!-- Big Z letter -->
+    <path android:strokeColor="#FFB86B" android:strokeWidth="6" android:fillColor="#00000000"
+        android:pathData="M40,40 L68,40 L40,68 L68,68" android:strokeLineCap="square" />
+</vector>

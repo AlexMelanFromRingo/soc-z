@@ -1,0 +1,116 @@
+package io.melan.socz
+
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.BatteryFull
+import androidx.compose.material.icons.outlined.Dashboard
+import androidx.compose.material.icons.outlined.DeveloperBoard
+import androidx.compose.material.icons.outlined.Memory
+import androidx.compose.material.icons.outlined.Videocam
+import androidx.compose.material3.Icon
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.navigation.NavDestination.Companion.hierarchy
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
+import io.melan.socz.ui.screens.BatteryScreen
+import io.melan.socz.ui.screens.CpuScreen
+import io.melan.socz.ui.screens.DisplayScreen
+import io.melan.socz.ui.screens.GpuScreen
+import io.melan.socz.ui.screens.MemoryScreen
+import io.melan.socz.ui.screens.NetworkScreen
+import io.melan.socz.ui.screens.OverviewScreen
+import io.melan.socz.ui.screens.SensorsScreen
+import io.melan.socz.ui.screens.StorageScreen
+import io.melan.socz.ui.theme.SocZTheme
+
+class MainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+        setContent {
+            SocZTheme {
+                Surface(modifier = Modifier.fillMaxSize()) {
+                    SocZApp()
+                }
+            }
+        }
+    }
+}
+
+private data class Tab(val route: String, val label: String, val icon: ImageVector)
+
+@Composable
+private fun SocZApp() {
+    val nav = rememberNavController()
+    val entry by nav.currentBackStackEntryAsState()
+    val current = entry?.destination?.route
+
+    // Nine tabs is a lot for the bottom bar — we cap visible to 5 most useful and let
+    // the rest be reached by scrolling. Android M3 NavigationBar wraps to a horizontal
+    // scroller automatically when count > 5 only on tablets, so on phones we choose.
+    // The five most useful for "what's in this phone" are: Overview, CPU, GPU, Memory, Battery.
+    // Sensors / Storage / Display / Network sit on a secondary nav under Overview as cards.
+    val tabs = listOf(
+        Tab("overview", "Overview", Icons.Outlined.Dashboard),
+        Tab("cpu", "CPU", Icons.Outlined.DeveloperBoard),
+        Tab("gpu", "GPU", Icons.Outlined.Videocam),
+        Tab("memory", "Memory", Icons.Outlined.Memory),
+        Tab("battery", "Battery", Icons.Outlined.BatteryFull),
+    )
+
+    Scaffold(
+        bottomBar = {
+            NavigationBar {
+                tabs.forEach { tab ->
+                    NavigationBarItem(
+                        selected = entry?.destination?.hierarchy?.any { it.route == tab.route } == true,
+                        onClick = {
+                            if (current != tab.route) {
+                                nav.navigate(tab.route) {
+                                    popUpTo(nav.graph.startDestinationId) { saveState = true }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            }
+                        },
+                        icon = { Icon(tab.icon, contentDescription = tab.label) },
+                        label = { Text(tab.label) },
+                    )
+                }
+            }
+        }
+    ) { padding ->
+        NavHost(
+            navController = nav,
+            startDestination = "overview",
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding),
+        ) {
+            composable("overview") { OverviewScreen(onOpenSecondary = { nav.navigate(it) }) }
+            composable("cpu") { CpuScreen() }
+            composable("gpu") { GpuScreen() }
+            composable("memory") { MemoryScreen() }
+            composable("battery") { BatteryScreen() }
+            composable("sensors") { SensorsScreen() }
+            composable("storage") { StorageScreen() }
+            composable("display") { DisplayScreen() }
+            composable("network") { NetworkScreen() }
+        }
+    }
+}
