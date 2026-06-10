@@ -19,7 +19,8 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
 
       - name: Install NDK and CMake
-        run: "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;26.3.11579264" "cmake;3.22.1"
+        run: |
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;26.3.11579264" "cmake;3.22.1"
 
       - name: Build, lint and test
         run: ./gradlew assembleDebug lintDebug testDebugUnitTest
