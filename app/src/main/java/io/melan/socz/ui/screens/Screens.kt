@@ -1,6 +1,7 @@
 package io.melan.socz.ui.screens
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -8,6 +9,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -22,12 +24,14 @@ import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.NetworkCell
 import androidx.compose.material.icons.outlined.Sensors
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.SmartDisplay
 import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -39,13 +43,16 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import io.melan.socz.R
 import io.melan.socz.collectors.BatteryCollector
 import io.melan.socz.collectors.CpuCollector
 import io.melan.socz.collectors.DisplayCollector
@@ -57,17 +64,23 @@ import io.melan.socz.collectors.SocCollector
 import io.melan.socz.collectors.SocInfo
 import io.melan.socz.collectors.StorageCollector
 import io.melan.socz.collectors.tickerFlow
+import io.melan.socz.report.ReportBuilder
 import io.melan.socz.ui.components.KvCard
 import io.melan.socz.ui.components.MetricBar
 import io.melan.socz.ui.components.SectionTitle
 import io.melan.socz.ui.components.VSpace
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun BaseScreen(title: String, content: @Composable () -> Unit) {
+private fun BaseScreen(
+    title: String,
+    actions: @Composable RowScope.() -> Unit = {},
+    content: @Composable () -> Unit,
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -75,6 +88,7 @@ private fun BaseScreen(title: String, content: @Composable () -> Unit) {
     ) {
         TopAppBar(
             title = { Text(title) },
+            actions = actions,
             colors = TopAppBarDefaults.topAppBarColors(
                 containerColor = MaterialTheme.colorScheme.surface,
             ),
@@ -86,6 +100,7 @@ private fun BaseScreen(title: String, content: @Composable () -> Unit) {
 @Composable
 fun OverviewScreen(onOpenSecondary: (String) -> Unit) {
     val ctx = LocalContext.current
+    val scope = rememberCoroutineScope()
     val soc by produceState<SocInfo?>(initialValue = null) {
         value = withContext(Dispatchers.IO) { SocCollector.read() }
     }
@@ -98,25 +113,42 @@ fun OverviewScreen(onOpenSecondary: (String) -> Unit) {
         tickerFlow(1500L) { MemoryCollector.sample(ctx) }.flowOn(Dispatchers.IO)
     }.collectAsState(initial = null)
 
-    BaseScreen("SOC-Z") {
+    BaseScreen(
+        title = stringResource(R.string.app_name),
+        actions = {
+            IconButton(onClick = {
+                scope.launch {
+                    val report = withContext(Dispatchers.IO) { ReportBuilder.build(ctx) }
+                    val send = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_SUBJECT, "SOC-Z hardware report")
+                        putExtra(Intent.EXTRA_TEXT, report)
+                    }
+                    ctx.startActivity(Intent.createChooser(send, null))
+                }
+            }) {
+                Icon(Icons.Outlined.Share, contentDescription = stringResource(R.string.action_share))
+            }
+        },
+    ) {
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            item { VSpace(4); SectionTitle("Device") }
+            item { VSpace(4); SectionTitle(stringResource(R.string.section_device)) }
             item {
                 val s = soc ?: return@item
                 KvCard(rows = listOf(
-                    "Model" to s.deviceModel,
-                    "SoC" to "${s.socManufacturer} ${s.socModel}",
-                    "Android" to "${s.androidVersion} (SDK ${s.androidSdk})",
-                    "Cores" to s.coreCount.toString(),
-                    "ABIs" to s.abis.joinToString(", "),
-                    "Hardware" to s.buildHardware,
-                    "Platform" to s.buildPlatform,
+                    stringResource(R.string.row_model) to s.deviceModel,
+                    stringResource(R.string.row_soc) to "${s.socManufacturer} ${s.socModel}",
+                    stringResource(R.string.row_android) to "${s.androidVersion} (SDK ${s.androidSdk})",
+                    stringResource(R.string.row_cores) to s.coreCount.toString(),
+                    stringResource(R.string.row_abis) to s.abis.joinToString(", "),
+                    stringResource(R.string.row_hardware) to s.buildHardware,
+                    stringResource(R.string.row_platform) to s.buildPlatform,
                 ))
             }
-            item { SectionTitle("Live") }
+            item { SectionTitle(stringResource(R.string.section_live)) }
             item {
                 val cpu = cpuSample
                 if (cpu != null) {
@@ -125,8 +157,9 @@ fun OverviewScreen(onOpenSecondary: (String) -> Unit) {
                     val maxMhz = cpu.cores.maxOfOrNull { it.maxMhz } ?: 0L
                     KvCard(
                         rows = listOf(
-                            "CPU avg" to "$avgMhz MHz (peak $maxMhz MHz)",
-                            "CPU temps" to cpu.tempMilliC.entries.joinToString(", ") {
+                            stringResource(R.string.row_cpu_avg) to
+                                stringResource(R.string.value_cpu_avg, avgMhz, maxMhz),
+                            stringResource(R.string.row_cpu_temps) to cpu.tempMilliC.entries.joinToString(", ") {
                                 "${it.key}: ${"%.1f".format(it.value / 1000f)}°C"
                             }.ifBlank { "—" },
                         ),
@@ -143,18 +176,19 @@ fun OverviewScreen(onOpenSecondary: (String) -> Unit) {
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
-                            Text("Memory", style = MaterialTheme.typography.titleMedium,
+                            Text(stringResource(R.string.tab_memory),
+                                style = MaterialTheme.typography.titleMedium,
                                 color = MaterialTheme.colorScheme.tertiary)
                             Spacer(Modifier.height(8.dp))
                             MetricBar(
-                                label = "RAM",
+                                label = stringResource(R.string.label_ram),
                                 valueText = "${mem.usedKb / 1024} / ${mem.totalKb / 1024} MiB",
                                 fraction = mem.usedKb.toFloat() / mem.totalKb.coerceAtLeast(1L),
                                 accent = MaterialTheme.colorScheme.tertiary,
                             )
                             if (mem.swapTotalKb > 0) {
                                 MetricBar(
-                                    label = "Swap (ZRAM)",
+                                    label = stringResource(R.string.label_swap_zram),
                                     valueText = "${(mem.swapTotalKb - mem.swapFreeKb) / 1024} / " +
                                         "${mem.swapTotalKb / 1024} MiB",
                                     fraction = (mem.swapTotalKb - mem.swapFreeKb).toFloat() /
@@ -169,22 +203,22 @@ fun OverviewScreen(onOpenSecondary: (String) -> Unit) {
             item {
                 val b = batterySample ?: return@item
                 KvCard(
-                    title = "Battery",
+                    title = stringResource(R.string.tab_battery),
                     accent = MaterialTheme.colorScheme.secondary,
                     rows = listOf(
-                        "Level" to "${b.levelPercent}%",
-                        "Status" to "${b.status} (${b.plugged})",
-                        "Temperature" to "${"%.1f".format(b.temperatureC)} °C",
-                        "Current" to "${b.currentUa / 1000} mA",
-                        "Voltage" to "${b.voltageMv} mV",
+                        stringResource(R.string.row_level) to "${b.levelPercent}%",
+                        stringResource(R.string.row_status) to "${b.status} (${b.plugged})",
+                        stringResource(R.string.row_temperature) to "${"%.1f".format(b.temperatureC)} °C",
+                        stringResource(R.string.row_current) to "${b.currentUa / 1000} mA",
+                        stringResource(R.string.row_voltage) to "${b.voltageMv} mV",
                     ),
                 )
             }
-            item { SectionTitle("Other") }
-            item { SecondaryNavRow(Icons.Outlined.SmartDisplay, "Display", { onOpenSecondary("display") }) }
-            item { SecondaryNavRow(Icons.Outlined.Storage, "Storage", { onOpenSecondary("storage") }) }
-            item { SecondaryNavRow(Icons.Outlined.Sensors, "Sensors", { onOpenSecondary("sensors") }) }
-            item { SecondaryNavRow(Icons.Outlined.NetworkCell, "Network", { onOpenSecondary("network") }) }
+            item { SectionTitle(stringResource(R.string.section_other)) }
+            item { SecondaryNavRow(Icons.Outlined.SmartDisplay, stringResource(R.string.title_display)) { onOpenSecondary("display") } }
+            item { SecondaryNavRow(Icons.Outlined.Storage, stringResource(R.string.title_storage)) { onOpenSecondary("storage") } }
+            item { SecondaryNavRow(Icons.Outlined.Sensors, stringResource(R.string.title_sensors)) { onOpenSecondary("sensors") } }
+            item { SecondaryNavRow(Icons.Outlined.NetworkCell, stringResource(R.string.title_network)) { onOpenSecondary("network") } }
             item { VSpace(16) }
         }
     }
@@ -216,12 +250,12 @@ fun CpuScreen() {
     val sample by remember {
         tickerFlow(500L) { CpuCollector.sample() }.flowOn(Dispatchers.IO)
     }.collectAsState(initial = null)
-    BaseScreen("CPU") {
+    BaseScreen(stringResource(R.string.tab_cpu)) {
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            item { VSpace(4); SectionTitle("Cores") }
+            item { VSpace(4); SectionTitle(stringResource(R.string.section_cores)) }
             val cpu = sample
             if (cpu != null) {
                 items(cpu.cores) { core ->
@@ -232,10 +266,10 @@ fun CpuScreen() {
                     ) {
                         Column(modifier = Modifier.padding(12.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("CPU ${core.index}",
+                                Text(stringResource(R.string.core_label, core.index),
                                     style = MaterialTheme.typography.titleMedium,
                                     modifier = Modifier.width(80.dp))
-                                Text(if (core.online) "online" else "offline",
+                                Text(stringResource(if (core.online) R.string.core_online else R.string.core_offline),
                                     color = if (core.online) MaterialTheme.colorScheme.tertiary
                                             else MaterialTheme.colorScheme.error,
                                     style = MaterialTheme.typography.labelMedium,
@@ -257,11 +291,11 @@ fun CpuScreen() {
                         }
                     }
                 }
-                item { SectionTitle("Thermal zones") }
+                item { SectionTitle(stringResource(R.string.section_thermal_zones)) }
                 item {
                     KvCard(rows = cpu.tempMilliC.entries.map { (k, v) ->
                         k to "${"%.1f".format(v / 1000f)} °C"
-                    }.ifEmpty { listOf("(none)" to "—") })
+                    }.ifEmpty { listOf(stringResource(R.string.value_none) to "—") })
                 }
             }
             item { VSpace(16) }
@@ -277,48 +311,81 @@ fun GpuScreen() {
     val gpu by produceState<io.melan.socz.collectors.GpuInfo?>(initialValue = null) {
         value = withContext(Dispatchers.IO) { GpuCollector.read(ctx) }
     }
-    BaseScreen("GPU") {
+    val freq by remember {
+        tickerFlow(1000L) { GpuCollector.sampleFrequency() }.flowOn(Dispatchers.IO)
+    }.collectAsState(initial = null)
+    BaseScreen(stringResource(R.string.tab_gpu)) {
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item { VSpace(4) }
+            item {
+                val f = freq ?: return@item
+                Card(
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(stringResource(R.string.card_gpu_clock),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.primary)
+                        Spacer(Modifier.height(8.dp))
+                        MetricBar(
+                            label = "${f.minMhz} – ${f.maxMhz} MHz",
+                            valueText = "${f.curMhz} MHz",
+                            fraction = (f.curMhz - f.minMhz).toFloat() /
+                                (f.maxMhz - f.minMhz).coerceAtLeast(1L).toFloat(),
+                        )
+                        f.busyPercent?.let { busy ->
+                            MetricBar(
+                                label = stringResource(R.string.label_busy),
+                                valueText = "$busy%",
+                                fraction = busy / 100f,
+                                accent = MaterialTheme.colorScheme.tertiary,
+                            )
+                        }
+                    }
+                }
+            }
             val g = gpu ?: return@LazyColumn
             item {
                 KvCard(
-                    title = "OpenGL ES",
+                    title = stringResource(R.string.card_opengl),
                     accent = MaterialTheme.colorScheme.primary,
                     rows = listOf(
-                        "Vendor" to g.openGlVendor,
-                        "Renderer" to g.openGlRenderer,
-                        "Version" to g.openGlVersion,
-                        "GLSL" to g.glslVersion,
-                        "Adreno" to (g.adrenoModel?.toString() ?: "—"),
+                        stringResource(R.string.row_vendor) to g.openGlVendor,
+                        stringResource(R.string.row_renderer) to g.openGlRenderer,
+                        stringResource(R.string.row_version) to g.openGlVersion,
+                        stringResource(R.string.row_glsl) to g.glslVersion,
+                        stringResource(R.string.row_adreno) to (g.adrenoModel?.toString() ?: "—"),
                     ),
                 )
             }
             item {
                 KvCard(
-                    title = "Vulkan",
+                    title = stringResource(R.string.card_vulkan),
                     accent = MaterialTheme.colorScheme.tertiary,
                     rows = listOf(
-                        "API version" to (g.vulkanApiVersion ?: "not supported"),
-                        "Ray tracing pipeline" to flag(g.supportsRayTracingPipeline),
-                        "Acceleration structure" to flag(g.supportsAccelerationStructure),
-                        "Ray query" to flag(g.supportsRayQuery),
-                        "Mesh shader" to flag(g.supportsMeshShader),
-                        "Bindless textures" to flag(g.supportsBindlessTextures),
+                        stringResource(R.string.row_api_version) to
+                            (g.vulkanApiVersion ?: stringResource(R.string.not_supported)),
+                        stringResource(R.string.row_rt_pipeline) to flag(g.supportsRayTracingPipeline),
+                        stringResource(R.string.row_accel_structure) to flag(g.supportsAccelerationStructure),
+                        stringResource(R.string.row_ray_query) to flag(g.supportsRayQuery),
+                        stringResource(R.string.row_mesh_shader) to flag(g.supportsMeshShader),
+                        stringResource(R.string.row_bindless) to flag(g.supportsBindlessTextures),
                     ),
                 )
             }
-            item { SectionTitle("Vulkan extensions (${g.vulkanExtensions.size})") }
+            item { SectionTitle(stringResource(R.string.section_vulkan_extensions, g.vulkanExtensions.size)) }
             items(g.vulkanExtensions) { e ->
                 Text(e, fontFamily = FontFamily.Monospace,
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(start = 8.dp, top = 1.dp, bottom = 1.dp))
             }
-            item { SectionTitle("OpenGL extensions (${g.openGlExtensions.size})") }
+            item { SectionTitle(stringResource(R.string.section_opengl_extensions, g.openGlExtensions.size)) }
             items(g.openGlExtensions) { e ->
                 Text(e, fontFamily = FontFamily.Monospace,
                     style = MaterialTheme.typography.labelMedium,
@@ -330,7 +397,8 @@ fun GpuScreen() {
     }
 }
 
-private fun flag(b: Boolean) = if (b) "✓ yes" else "✗ no"
+@Composable
+private fun flag(b: Boolean) = stringResource(if (b) R.string.flag_yes else R.string.flag_no)
 
 /* ============================ MEMORY ============================ */
 
@@ -340,7 +408,7 @@ fun MemoryScreen() {
     val sample by remember(ctx) {
         tickerFlow(1000L) { MemoryCollector.sample(ctx) }.flowOn(Dispatchers.IO)
     }.collectAsState(initial = null)
-    BaseScreen("Memory") {
+    BaseScreen(stringResource(R.string.tab_memory)) {
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -352,16 +420,16 @@ fun MemoryScreen() {
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        MetricBar("RAM used",
+                        MetricBar(stringResource(R.string.label_ram_used),
                             "${m.usedKb / 1024} / ${m.totalKb / 1024} MiB",
                             m.usedKb.toFloat() / m.totalKb.coerceAtLeast(1L),
                             MaterialTheme.colorScheme.primary)
-                        MetricBar("Cached",
+                        MetricBar(stringResource(R.string.label_cached),
                             "${m.cachedKb / 1024} MiB",
                             m.cachedKb.toFloat() / m.totalKb.coerceAtLeast(1L),
                             MaterialTheme.colorScheme.tertiary)
                         if (m.swapTotalKb > 0) {
-                            MetricBar("Swap/ZRAM",
+                            MetricBar(stringResource(R.string.label_swap_zram),
                                 "${(m.swapTotalKb - m.swapFreeKb) / 1024} / ${m.swapTotalKb / 1024} MiB",
                                 (m.swapTotalKb - m.swapFreeKb).toFloat() /
                                     m.swapTotalKb.coerceAtLeast(1L),
@@ -371,6 +439,7 @@ fun MemoryScreen() {
                 }
             }
             item {
+                // /proc/meminfo keys are kernel identifiers — left untranslated on purpose.
                 KvCard(rows = listOf(
                     "MemTotal" to "${m.totalKb / 1024} MiB",
                     "MemFree" to "${m.freeKb / 1024} MiB",
@@ -380,8 +449,9 @@ fun MemoryScreen() {
                     "SwapTotal" to "${m.swapTotalKb / 1024} MiB",
                     "SwapFree" to "${m.swapFreeKb / 1024} MiB",
                     "ZRAM" to "${m.zramKb / 1024} MiB",
-                    "Low memory" to if (m.lowMemory) "ALERT" else "no",
-                    "Threshold" to "${m.threshold / 1024} MiB",
+                    stringResource(R.string.row_low_memory) to
+                        stringResource(if (m.lowMemory) R.string.value_alert else R.string.value_no),
+                    stringResource(R.string.row_threshold) to "${m.threshold / 1024} MiB",
                 ))
             }
             item { VSpace(16) }
@@ -397,7 +467,7 @@ fun BatteryScreen() {
     val sample by remember(ctx) {
         tickerFlow(1000L) { BatteryCollector.sample(ctx) }.flowOn(Dispatchers.IO)
     }.collectAsState(initial = null)
-    BaseScreen("Battery") {
+    BaseScreen(stringResource(R.string.tab_battery)) {
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -422,7 +492,7 @@ fun BatteryScreen() {
                         }
                         Spacer(Modifier.height(8.dp))
                         MetricBar(
-                            label = "Level",
+                            label = stringResource(R.string.label_level),
                             valueText = "${b.levelPercent}%",
                             fraction = b.levelPercent / 100f,
                             accent = MaterialTheme.colorScheme.secondary,
@@ -431,17 +501,29 @@ fun BatteryScreen() {
                 }
             }
             item {
-                KvCard(rows = listOf(
-                    "Temperature" to "${"%.1f".format(b.temperatureC)} °C",
-                    "Current" to "${b.currentUa / 1000} mA",
-                    "Voltage" to "${b.voltageMv} mV",
-                    "Power" to "${"%.2f".format(b.currentUa / 1_000_000.0 * b.voltageMv / 1000.0)} W",
-                    "Charge counter" to "${b.capacityRemainUah / 1000} mAh",
-                    "Cycles" to if (b.chargingCycles >= 0) b.chargingCycles.toString() else "—",
-                    "Plugged" to b.plugged,
-                    "Technology" to b.technology,
-                    "Health" to b.health,
-                ))
+                val rows = buildList {
+                    add(stringResource(R.string.row_temperature) to "${"%.1f".format(b.temperatureC)} °C")
+                    add(stringResource(R.string.row_current) to "${b.currentUa / 1000} mA")
+                    add(stringResource(R.string.row_voltage) to "${b.voltageMv} mV")
+                    add(stringResource(R.string.row_power) to
+                        "${"%.2f".format(b.currentUa / 1_000_000.0 * b.voltageMv / 1000.0)} W")
+                    add(stringResource(R.string.row_charge_counter) to "${b.capacityRemainUah / 1000} mAh")
+                    b.designCapacityMah?.let { design ->
+                        add(stringResource(R.string.row_design_capacity) to "${design.toInt()} mAh")
+                        if (b.levelPercent in 1..100 && b.capacityRemainUah > 0) {
+                            val estFullMah = b.capacityRemainUah / 1000.0 * 100.0 / b.levelPercent
+                            add(stringResource(R.string.row_full_charge_est) to "${estFullMah.toInt()} mAh")
+                            add(stringResource(R.string.row_health_est) to
+                                "${(estFullMah / design * 100).toInt()} %")
+                        }
+                    }
+                    add(stringResource(R.string.row_cycles) to
+                        if (b.chargingCycles >= 0) b.chargingCycles.toString() else "—")
+                    add(stringResource(R.string.row_plugged) to b.plugged)
+                    add(stringResource(R.string.row_technology) to b.technology)
+                    add(stringResource(R.string.row_health) to b.health)
+                }
+                KvCard(rows = rows)
             }
             item { VSpace(16) }
         }
@@ -458,7 +540,7 @@ fun DisplayScreen() {
     val displays by remember(ctx) {
         tickerFlow(1000L) { DisplayCollector.read(ctx) }.flowOn(Dispatchers.IO)
     }.collectAsState(initial = emptyList())
-    BaseScreen("Display") {
+    BaseScreen(stringResource(R.string.title_display)) {
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -468,13 +550,14 @@ fun DisplayScreen() {
                 KvCard(
                     title = d.name,
                     rows = listOf(
-                        "Resolution" to "${d.widthPx} × ${d.heightPx} px",
-                        "Density" to "${d.densityDpi} dpi",
-                        "Refresh" to "${"%.1f".format(d.refreshHz)} Hz",
-                        "Supported" to d.supportedRefreshRates.joinToString(", ") { "${"%.0f".format(it)} Hz" },
-                        "HDR" to d.hdrTypes.joinToString(", ").ifBlank { "—" },
-                        "State" to d.state,
-                        "Rotation" to "${d.rotationDeg}°",
+                        stringResource(R.string.row_resolution) to "${d.widthPx} × ${d.heightPx} px",
+                        stringResource(R.string.row_density) to "${d.densityDpi} dpi",
+                        stringResource(R.string.row_refresh) to "${"%.1f".format(d.refreshHz)} Hz",
+                        stringResource(R.string.row_supported) to
+                            d.supportedRefreshRates.joinToString(", ") { "${"%.0f".format(it)} Hz" },
+                        stringResource(R.string.row_hdr) to d.hdrTypes.joinToString(", ").ifBlank { "—" },
+                        stringResource(R.string.row_state) to d.state,
+                        stringResource(R.string.row_rotation) to "${d.rotationDeg}°",
                     ),
                 )
             }
@@ -489,7 +572,7 @@ fun StorageScreen() {
     val volumes by produceState(initialValue = emptyList<io.melan.socz.collectors.VolumeInfo>()) {
         value = withContext(Dispatchers.IO) { StorageCollector.read(ctx) }
     }
-    BaseScreen("Storage") {
+    BaseScreen(stringResource(R.string.title_storage)) {
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -507,17 +590,17 @@ fun StorageScreen() {
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(Modifier.height(8.dp))
                         MetricBar(
-                            label = "Used",
+                            label = stringResource(R.string.label_used),
                             valueText = "${v.usedBytes / (1024L * 1024L * 1024L)} / " +
                                 "${v.totalBytes / (1024L * 1024L * 1024L)} GiB",
                             fraction = v.usedBytes.toFloat() / v.totalBytes.coerceAtLeast(1L),
                         )
                         Text(
-                            text = buildString {
-                                if (v.isPrimary) append("primary  ")
-                                if (v.isRemovable) append("removable  ")
-                                if (v.isEmulated) append("emulated")
-                            },
+                            text = listOfNotNull(
+                                if (v.isPrimary) stringResource(R.string.value_primary) else null,
+                                if (v.isRemovable) stringResource(R.string.value_removable) else null,
+                                if (v.isEmulated) stringResource(R.string.value_emulated) else null,
+                            ).joinToString("  "),
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontFamily = FontFamily.Monospace,
@@ -539,12 +622,12 @@ fun SensorsScreen() {
     val liveValues by remember(ctx) {
         SensorCollector.liveValues(ctx)
     }.collectAsState(initial = emptyMap())
-    BaseScreen("Sensors") {
+    BaseScreen(stringResource(R.string.title_sensors)) {
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            item { VSpace(4); SectionTitle("Found: ${sensors.size}") }
+            item { VSpace(4); SectionTitle(stringResource(R.string.section_found, sensors.size)) }
             items(sensors) { s ->
                 Card(shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -555,12 +638,9 @@ fun SensorsScreen() {
                             color = MaterialTheme.colorScheme.primary,
                             fontFamily = FontFamily.Monospace)
                         Text(
-                            buildString {
-                                append(s.vendor); append(" · ")
-                                append("range ${s.maxRange}, res ${s.resolution}, ")
-                                append("${s.powerMa} mA")
-                                if (s.isWakeUp) append(", wakeup")
-                            },
+                            stringResource(R.string.sensor_meta, s.vendor,
+                                s.maxRange.toString(), s.resolution.toString(), s.powerMa.toString()) +
+                                if (s.isWakeUp) stringResource(R.string.sensor_wakeup_suffix) else "",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -592,6 +672,7 @@ fun NetworkScreen() {
     LaunchedEffect(Unit) {
         val missing = listOf(
             Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.ACCESS_COARSE_LOCATION,
             Manifest.permission.READ_PHONE_STATE,
         ).filter {
             ContextCompat.checkSelfPermission(ctx, it) != PackageManager.PERMISSION_GRANTED
@@ -601,7 +682,7 @@ fun NetworkScreen() {
     val sample by remember(ctx) {
         tickerFlow(2000L) { NetworkCollector.sample(ctx) }.flowOn(Dispatchers.IO)
     }.collectAsState(initial = null)
-    BaseScreen("Network") {
+    BaseScreen(stringResource(R.string.title_network)) {
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -610,26 +691,31 @@ fun NetworkScreen() {
             val n = sample ?: return@LazyColumn
             item {
                 KvCard(
-                    title = "Active connection",
+                    title = stringResource(R.string.card_active_connection),
                     accent = MaterialTheme.colorScheme.primary,
                     rows = listOfNotNull(
-                        "Transport" to n.activeTransport,
-                        "Downstream" to "${n.downstreamKbps / 1000} Mbps",
-                        "Upstream" to "${n.upstreamKbps / 1000} Mbps",
-                        "Metered" to if (n.isMetered) "yes" else "no",
+                        stringResource(R.string.row_transport) to n.activeTransport,
+                        stringResource(R.string.row_downstream) to "${n.downstreamKbps / 1000} Mbps",
+                        stringResource(R.string.row_upstream) to "${n.upstreamKbps / 1000} Mbps",
+                        stringResource(R.string.row_metered) to
+                            stringResource(if (n.isMetered) R.string.value_yes else R.string.value_no),
+                        n.ipv4?.let { stringResource(R.string.row_ipv4) to it },
+                        n.ipv6?.let { stringResource(R.string.row_ipv6) to it },
                     ),
                 )
             }
             if (n.activeTransport == "Wi-Fi") {
                 item {
                     KvCard(
-                        title = "Wi-Fi",
+                        title = stringResource(R.string.card_wifi),
                         accent = MaterialTheme.colorScheme.tertiary,
                         rows = listOfNotNull(
-                            "SSID" to (n.wifiSsid ?: "— (needs Location permission + Location on)"),
-                            n.wifiRssi?.let { "RSSI" to "$it dBm" },
-                            n.wifiLinkSpeedMbps?.let { "Link" to "$it Mbps" },
-                            n.wifiFrequencyMhz?.let { "Frequency" to "$it MHz" },
+                            stringResource(R.string.row_ssid) to
+                                (n.wifiSsid ?: stringResource(R.string.ssid_needs_location)),
+                            n.wifiStandard?.let { stringResource(R.string.row_standard) to it },
+                            n.wifiRssi?.let { stringResource(R.string.row_rssi) to "$it dBm" },
+                            n.wifiLinkSpeedMbps?.let { stringResource(R.string.row_link) to "$it Mbps" },
+                            n.wifiFrequencyMhz?.let { stringResource(R.string.row_frequency) to "$it MHz" },
                         ),
                     )
                 }
@@ -637,11 +723,11 @@ fun NetworkScreen() {
             if (n.cellularOperator != null || n.cellularType != null) {
                 item {
                     KvCard(
-                        title = "Cellular",
+                        title = stringResource(R.string.card_cellular),
                         accent = MaterialTheme.colorScheme.secondary,
                         rows = listOfNotNull(
-                            n.cellularOperator?.let { "Operator" to it },
-                            n.cellularType?.let { "Network" to it },
+                            n.cellularOperator?.let { stringResource(R.string.row_operator) to it },
+                            n.cellularType?.let { stringResource(R.string.row_network) to it },
                         ),
                     )
                 }

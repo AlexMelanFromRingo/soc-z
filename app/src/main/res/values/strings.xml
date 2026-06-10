@@ -1,4 +1,122 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">SOC-Z</string>
+
+    <!-- Bottom navigation tabs (double as screen titles) -->
+    <string name="tab_overview">Overview</string>
+    <string name="tab_cpu">CPU</string>
+    <string name="tab_gpu">GPU</string>
+    <string name="tab_memory">Memory</string>
+    <string name="tab_battery">Battery</string>
+    <string name="title_display">Display</string>
+    <string name="title_storage">Storage</string>
+    <string name="title_sensors">Sensors</string>
+    <string name="title_network">Network</string>
+
+    <!-- Section titles -->
+    <string name="section_device">Device</string>
+    <string name="section_live">Live</string>
+    <string name="section_other">Other</string>
+    <string name="section_cores">Cores</string>
+    <string name="section_thermal_zones">Thermal zones</string>
+    <string name="section_found">Found: %1$d</string>
+    <string name="section_vulkan_extensions">Vulkan extensions (%1$d)</string>
+    <string name="section_opengl_extensions">OpenGL extensions (%1$d)</string>
+
+    <!-- Card titles -->
+    <string name="card_opengl">OpenGL ES</string>
+    <string name="card_vulkan">Vulkan</string>
+    <string name="card_gpu_clock">GPU clock</string>
+    <string name="card_active_connection">Active connection</string>
+    <string name="card_wifi">Wi-Fi</string>
+    <string name="card_cellular">Cellular</string>
+
+    <!-- Key/value row labels -->
+    <string name="row_model">Model</string>
+    <string name="row_soc">SoC</string>
+    <string name="row_android">Android</string>
+    <string name="row_cores">Cores</string>
+    <string name="row_abis">ABIs</string>
+    <string name="row_hardware">Hardware</string>
+    <string name="row_platform">Platform</string>
+    <string name="row_cpu_avg">CPU avg</string>
+    <string name="row_cpu_temps">CPU temps</string>
+    <string name="row_level">Level</string>
+    <string name="row_status">Status</string>
+    <string name="row_temperature">Temperature</string>
+    <string name="row_current">Current</string>
+    <string name="row_voltage">Voltage</string>
+    <string name="row_power">Power</string>
+    <string name="row_charge_counter">Charge counter</string>
+    <string name="row_cycles">Cycles</string>
+    <string name="row_plugged">Plugged</string>
+    <string name="row_technology">Technology</string>
+    <string name="row_health">Health</string>
+    <string name="row_design_capacity">Design capacity</string>
+    <string name="row_full_charge_est">Full charge (est.)</string>
+    <string name="row_health_est">Health (est.)</string>
+    <string name="row_vendor">Vendor</string>
+    <string name="row_renderer">Renderer</string>
+    <string name="row_version">Version</string>
+    <string name="row_glsl">GLSL</string>
+    <string name="row_adreno">Adreno</string>
+    <string name="row_api_version">API version</string>
+    <string name="row_rt_pipeline">Ray tracing pipeline</string>
+    <string name="row_accel_structure">Acceleration structure</string>
+    <string name="row_ray_query">Ray query</string>
+    <string name="row_mesh_shader">Mesh shader</string>
+    <string name="row_bindless">Bindless textures</string>
+    <string name="row_low_memory">Low memory</string>
+    <string name="row_threshold">Threshold</string>
+    <string name="row_resolution">Resolution</string>
+    <string name="row_density">Density</string>
+    <string name="row_refresh">Refresh</string>
+    <string name="row_supported">Supported</string>
+    <string name="row_hdr">HDR</string>
+    <string name="row_state">State</string>
+    <string name="row_rotation">Rotation</string>
+    <string name="row_transport">Transport</string>
+    <string name="row_downstream">Downstream</string>
+    <string name="row_upstream">Upstream</string>
+    <string name="row_metered">Metered</string>
+    <string name="row_ssid">SSID</string>
+    <string name="row_rssi">RSSI</string>
+    <string name="row_link">Link</string>
+    <string name="row_frequency">Frequency</string>
+    <string name="row_standard">Standard</string>
+    <string name="row_ipv4">IPv4</string>
+    <string name="row_ipv6">IPv6</string>
+    <string name="row_operator">Operator</string>
+    <string name="row_network">Network</string>
+
+    <!-- Metric bar labels -->
+    <string name="label_ram">RAM</string>
+    <string name="label_ram_used">RAM used</string>
+    <string name="label_cached">Cached</string>
+    <string name="label_swap_zram">Swap (ZRAM)</string>
+    <string name="label_used">Used</string>
+    <string name="label_level">Level</string>
+    <string name="label_busy">Busy</string>
+
+    <!-- Values -->
+    <string name="value_cpu_avg">%1$d MHz (peak %2$d MHz)</string>
+    <string name="core_label">CPU %1$d</string>
+    <string name="core_online">online</string>
+    <string name="core_offline">offline</string>
+    <string name="value_none">(none)</string>
+    <string name="flag_yes">✓ yes</string>
+    <string name="flag_no">✗ no</string>
+    <string name="value_yes">yes</string>
+    <string name="value_no">no</string>
+    <string name="value_alert">ALERT</string>
+    <string name="not_supported">not supported</string>
+    <string name="ssid_needs_location">— (needs Location permission + Location on)</string>
+    <string name="value_primary">primary</string>
+    <string name="value_removable">removable</string>
+    <string name="value_emulated">emulated</string>
+    <string name="sensor_meta">%1$s · range %2$s, res %3$s, %4$s mA</string>
+    <string name="sensor_wakeup_suffix">, wakeup</string>
+
+    <!-- Actions -->
+    <string name="action_share">Share report</string>
 </resources>

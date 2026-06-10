@@ -5,9 +5,12 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import android.net.wifi.ScanResult
 import android.net.wifi.WifiManager
 import android.telephony.TelephonyManager
 import androidx.core.content.ContextCompat
+import java.net.Inet4Address
+import java.net.Inet6Address
 
 data class NetworkSample(
     val activeTransport: String,
@@ -18,6 +21,7 @@ data class NetworkSample(
     val wifiRssi: Int?,
     val wifiLinkSpeedMbps: Int?,
     val wifiFrequencyMhz: Int?,
+    val wifiStandard: String?,
     val cellularType: String?,
     val cellularOperator: String?,
     val ipv4: String?,
@@ -50,6 +54,11 @@ object NetworkCollector {
         val ssid = wifiInfo?.ssid?.trim('"')
             ?.takeUnless { it.isBlank() || it == WifiManager.UNKNOWN_SSID }
 
+        val addresses = active
+            ?.let { runCatching { cm.getLinkProperties(it)?.linkAddresses }.getOrNull() }
+            ?.map { it.address }
+            .orEmpty()
+
         val tm = ctx.getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
         val canReadPhone = ContextCompat.checkSelfPermission(ctx, Manifest.permission.READ_PHONE_STATE) ==
             PackageManager.PERMISSION_GRANTED
@@ -63,11 +72,23 @@ object NetworkCollector {
             wifiRssi = wifiInfo?.rssi,
             wifiLinkSpeedMbps = wifiInfo?.linkSpeed,
             wifiFrequencyMhz = wifiInfo?.frequency,
+            wifiStandard = wifiInfo?.let { wifiStandardName(it.wifiStandard) },
             cellularType = if (canReadPhone) networkTypeName(tm.dataNetworkType) else null,
             cellularOperator = tm.networkOperatorName.takeIf { it.isNotBlank() },
-            ipv4 = null,    // would require iterating NetworkInterface
-            ipv6 = null,
+            ipv4 = addresses.filterIsInstance<Inet4Address>().firstOrNull()?.hostAddress,
+            ipv6 = addresses.filterIsInstance<Inet6Address>()
+                .firstOrNull { !it.isLinkLocalAddress }?.hostAddress,
         )
+    }
+
+    internal fun wifiStandardName(s: Int): String? = when (s) {
+        ScanResult.WIFI_STANDARD_LEGACY -> "legacy (802.11a/b/g)"
+        ScanResult.WIFI_STANDARD_11N -> "Wi-Fi 4 (802.11n)"
+        ScanResult.WIFI_STANDARD_11AC -> "Wi-Fi 5 (802.11ac)"
+        ScanResult.WIFI_STANDARD_11AX -> "Wi-Fi 6 (802.11ax)"
+        ScanResult.WIFI_STANDARD_11AD -> "WiGig (802.11ad)"
+        ScanResult.WIFI_STANDARD_11BE -> "Wi-Fi 7 (802.11be)"
+        else -> null
     }
 
     private fun networkTypeName(t: Int) = when (t) {

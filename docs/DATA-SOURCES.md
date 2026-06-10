@@ -36,6 +36,8 @@ milli-°C. Zone names are entirely vendor-defined.
 | Vulkan extensions + capability flags | JNI: transient `VkInstance` → `vkEnumerateDeviceExtensionProperties` + instance extensions |
 | Vulkan API version | `PackageManager` feature `android.hardware.vulkan.version` (decoded major.minor.patch) + `android.hardware.vulkan.level` |
 | Adreno model | regex over `GL_RENDERER` |
+| Live clock (Adreno) | `/sys/class/kgsl/kgsl-3d0/gpuclk` (Hz), `devfreq/min_freq`, `devfreq/max_freq`, `gpu_busy_percentage` |
+| Live clock (others) | first `/sys/class/devfreq/*/` dir whose name contains `gpu`/`mali`/`kgsl`: `cur_freq`, `min_freq`, `max_freq` |
 
 ## Memory (`Memory.kt`)
 
@@ -55,6 +57,8 @@ milli-°C. Zone names are entirely vendor-defined.
 | Cycle count | `EXTRA_CYCLE_COUNT` from the `ACTION_BATTERY_CHANGED` sticky intent, API 34+ only |
 | Status / plugged / health / technology / voltage / temperature | extras of the `ACTION_BATTERY_CHANGED` sticky intent |
 | Power (W) | computed: `current × voltage` |
+| Design capacity (mAh) | `com.android.internal.os.PowerProfile.getBatteryCapacity()` via reflection; values ≤ 100 treated as OEM stubs |
+| Health estimate | computed: `charge_counter / level × 100` vs design capacity — an approximation, noisy at low charge levels |
 
 ## Display (`Display.kt`)
 
@@ -84,6 +88,8 @@ are shown raw, up to 6 components.
 | Field | Source |
 |---|---|
 | Transport / bandwidth / metered | `ConnectivityManager.activeNetwork` → `NetworkCapabilities` |
+| IPv4 / IPv6 | `ConnectivityManager.getLinkProperties().linkAddresses` (first global address; link-local IPv6 skipped) |
 | SSID / RSSI / link speed / frequency | `WifiManager.connectionInfo` (deprecated but functional). SSID requires `ACCESS_FINE_LOCATION` **and** system Location on; `<unknown ssid>` is mapped to "not available" |
+| Wi-Fi standard | `WifiInfo.getWifiStandard()` → "Wi-Fi 4/5/6/7 (802.11n/ac/ax/be)" |
 | Cellular type | `TelephonyManager.dataNetworkType` (needs `READ_PHONE_STATE`) |
 | Operator | `TelephonyManager.networkOperatorName` |

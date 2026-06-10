@@ -3,7 +3,9 @@
 
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <!-- Android gates the Wi-Fi SSID/BSSID behind fine location. -->
+    <!-- Android gates the Wi-Fi SSID/BSSID behind fine location. Coarse must be
+         declared alongside fine on Android 12+ or the runtime request is ignored. -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <!-- Needed for TelephonyManager.dataNetworkType (cellular network type). -->
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />

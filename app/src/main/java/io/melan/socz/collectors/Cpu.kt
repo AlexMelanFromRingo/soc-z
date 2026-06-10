@@ -13,7 +13,6 @@ data class CoreState(
     val minMhz: Long,
     val maxMhz: Long,
     val governor: String,
-    val utilization: Float?,           // 0..1 over last sample interval, null if unknown
 )
 
 data class CpuSample(
@@ -22,8 +21,6 @@ data class CpuSample(
 )
 
 object CpuCollector {
-    private var lastJiffies: List<LongArray>? = null
-
     fun sample(): CpuSample {
         val cores = (0..23).mapNotNull { readCore(it) }
         val temps = readThermalZones()
@@ -48,12 +45,13 @@ object CpuCollector {
             File(freqDir, "scaling_governor").readText().trim()
         }.getOrDefault("?")
 
-        // Utilization derived from /proc/stat would need delta computation across samples;
-        // we expose null when we can't compute. (Kept simple for v1.)
+        // True per-core utilization needs /proc/stat, which SELinux hides from
+        // apps since Android 8 — the UI shows the clock's position in its
+        // min–max range instead.
         return CoreState(
             index = cpu, online = online,
             curMhz = cur / 1000, minMhz = min / 1000, maxMhz = max / 1000,
-            governor = governor, utilization = null,
+            governor = governor,
         )
     }
 

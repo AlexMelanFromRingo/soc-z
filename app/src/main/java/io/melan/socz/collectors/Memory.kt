@@ -38,15 +38,16 @@ object MemoryCollector {
         )
     }
 
-    private fun readMeminfo(): Map<String, Long> {
+    private fun readMeminfo(): Map<String, Long> =
+        runCatching { parseMeminfo(File("/proc/meminfo").readText()) }.getOrDefault(emptyMap())
+
+    internal fun parseMeminfo(text: String): Map<String, Long> {
         val m = HashMap<String, Long>()
-        runCatching {
-            File("/proc/meminfo").forEachLine { line ->
-                val parts = line.split(':')
-                if (parts.size == 2) {
-                    val v = parts[1].trim().removeSuffix("kB").trim().toLongOrNull()
-                    if (v != null) m[parts[0].trim()] = v
-                }
+        text.lineSequence().forEach { line ->
+            val parts = line.split(':')
+            if (parts.size == 2) {
+                val v = parts[1].trim().removeSuffix("kB").trim().toLongOrNull()
+                if (v != null) m[parts[0].trim()] = v
             }
         }
         return m

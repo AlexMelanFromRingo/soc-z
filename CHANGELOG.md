@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.4.0 — 2026-06-10
+
+### Added
+- IPv4/IPv6 addresses of the active network on the Network screen.
+- Wi-Fi standard (Wi-Fi 4/5/6/7) on the Network screen.
+- Battery design capacity (OEM power profile) with estimated full-charge
+  capacity and battery-health percentage.
+- Live GPU clock with min–max gauge (and busy % on Adreno), read from kgsl /
+  devfreq sysfs where the vendor exposes it.
+- Share action on the Overview screen — exports the whole device profile as a
+  plain-text report.
+- Monochrome launcher icon (themed icons on Android 13+).
+- JVM unit tests for the text parsers; GitHub Actions CI (build + lint + test,
+  APK artifact on every push).
+- MIT license.
+
+### Changed
+- All UI labels moved from hardcoded Kotlin strings to `strings.xml` —
+  the app is now translatable.
+- Removed the dead `CoreState.utilization` field: `/proc/stat` is hidden from
+  apps since Android 8, so honest per-core load can't be measured.
+
 ## 0.3.0 — 2026-06-10
 
 ### Fixed

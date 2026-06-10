@@ -1,5 +1,8 @@
 # SOC-Z
 
+[![build](https://github.com/AlexMelanFromRingo/soc-z/actions/workflows/build.yml/badge.svg)](https://github.com/AlexMelanFromRingo/soc-z/actions/workflows/build.yml)
+[![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 A lightweight hardware inspector for Android — a CPU-Z-style app that shows what
 is actually inside your phone: SoC, per-core CPU clocks, GPU capabilities
 (including a real Vulkan extension probe via JNI), memory, battery, storage,
@@ -15,17 +18,31 @@ Android APIs, `/proc` and `/sys`.
 |---|---|
 | **Overview** | Device model, SoC vendor/model, Android version, ABIs, plus live CPU average clock, CPU temperatures, RAM/swap usage and battery summary |
 | **CPU** | Per-core live frequency (0.5 s refresh), min/max clocks, online/offline state, scaling governor, all thermal zones |
-| **GPU** | OpenGL ES vendor/renderer/version/GLSL, full OpenGL and Vulkan extension lists, Vulkan API version, and capability flags: ray tracing pipeline, acceleration structure, ray query, mesh shaders, bindless textures |
+| **GPU** | OpenGL ES vendor/renderer/version/GLSL, full OpenGL and Vulkan extension lists, Vulkan API version, capability flags (ray tracing pipeline, acceleration structure, ray query, mesh shaders, bindless textures) and a live GPU clock/busy gauge where the vendor kernel exposes it |
 | **Memory** | Live RAM / cached / swap (ZRAM) usage bars and the raw `/proc/meminfo` numbers, low-memory state and threshold |
-| **Battery** | Level, charge/discharge current, voltage, computed power draw, temperature, charge counter, cycle count (Android 14+), health, technology |
+| **Battery** | Level, charge/discharge current, voltage, computed power draw, temperature, charge counter, design capacity with an estimated battery-health percentage, cycle count (Android 14+), health, technology |
 | **Display** | Per-display resolution, density, current and supported refresh rates, HDR types, power state, current rotation — updates live |
 | **Storage** | Every mounted volume with used/total bars, primary/removable/emulated flags |
 | **Sensors** | Every hardware sensor with vendor, type, range, resolution, power draw — and **live values** updating twice a second |
-| **Network** | Active transport, link bandwidth, metered flag; Wi-Fi SSID/RSSI/link speed/frequency; cellular operator and network type (LTE / 5G NR / …) |
+| **Network** | Active transport, link bandwidth, metered flag, IPv4/IPv6 addresses; Wi-Fi SSID/standard (Wi-Fi 4/5/6/7)/RSSI/link speed/frequency; cellular operator and network type (LTE / 5G NR / …) |
 
 The five primary tabs (Overview, CPU, GPU, Memory, Battery) live in the bottom
 navigation bar; Display, Storage, Sensors and Network open from cards on the
-Overview screen.
+Overview screen. The share button on the Overview screen exports the whole
+device profile as a plain-text report (for bug trackers, forums, comparisons).
+
+## Screenshots
+
+<!-- TODO: drop PNGs into docs/screenshots/ and uncomment.
+     Capture with: adb exec-out screencap -p > docs/screenshots/overview.png
+<p align="center">
+  <img src="docs/screenshots/overview.png" width="24%" />
+  <img src="docs/screenshots/cpu.png" width="24%" />
+  <img src="docs/screenshots/gpu.png" width="24%" />
+  <img src="docs/screenshots/sensors.png" width="24%" />
+</p>
+-->
+*Coming soon.*
 
 ## Requirements
 
@@ -63,7 +80,11 @@ git clone https://github.com/AlexMelanFromRingo/soc-z.git
 cd soc-z
 ./gradlew assembleDebug          # → app/build/outputs/apk/debug/app-debug.apk
 ./gradlew installDebug           # build + install on a connected device
+./gradlew testDebugUnitTest      # parser unit tests
 ```
+
+CI (GitHub Actions) builds, lints and tests every push and attaches the debug
+APK as an artifact.
 
 ### Release builds
 
@@ -117,12 +138,18 @@ comes from.
 
 ## Known limitations
 
-- **CPU utilization** per core is not yet computed (needs `/proc/stat` deltas);
-  the bars show the position of the current clock within the min–max range.
+- **CPU utilization** per core cannot be measured — Android's SELinux policy
+  hides `/proc/stat` from apps since 8.0. The bars show the position of the
+  current clock within the min–max range instead.
+- **GPU clock** comes from vendor sysfs (kgsl for Adreno, devfreq otherwise);
+  on devices where SELinux hides those nodes the card is simply absent.
 - **Thermal zones and ZRAM** paths are vendor-specific; some devices expose
   none of them without root.
 - **Battery cycle count** requires Android 14+ and OEM support — shown as `—`
-  otherwise.
+  otherwise. **Design capacity** comes from the OEM power profile via
+  reflection and may be missing or stubbed on some devices; the health
+  estimate divides the charge counter by the current level, so it is noisy at
+  low charge.
 - **Current sign convention** (charging positive vs negative) varies between
   vendors; the raw value is shown as reported.
 - Only `arm64-v8a` is packaged. x86_64 emulators need an added ABI filter.
@@ -138,5 +165,4 @@ comes from.
 
 ## License
 
-No license has been chosen yet — all rights reserved for now. Open an issue if
-you want to use the code and a proper license will be picked.
+[MIT](LICENSE) © 2026 Alex Melan

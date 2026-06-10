@@ -17,9 +17,28 @@ data class BatterySample(
     val technology: String,
     val health: String,
     val chargingCycles: Int,
+    /** Factory design capacity in mAh from the OEM power profile, null if unavailable. */
+    val designCapacityMah: Double?,
 )
 
 object BatteryCollector {
+    // PowerProfile lives in internal API; probe it once per process via reflection
+    // and cache the result (the design capacity obviously never changes).
+    private var designCapacityCache: Double? = null
+    private var designCapacityProbed = false
+
+    private fun designCapacityMah(ctx: Context): Double? {
+        if (!designCapacityProbed) {
+            designCapacityProbed = true
+            designCapacityCache = runCatching {
+                val cls = Class.forName("com.android.internal.os.PowerProfile")
+                val profile = cls.getConstructor(Context::class.java).newInstance(ctx)
+                cls.getMethod("getBatteryCapacity").invoke(profile) as Double
+            }.getOrNull()?.takeIf { it > 100.0 } // some OEMs report 0 or 1000-stub
+        }
+        return designCapacityCache
+    }
+
     fun sample(ctx: Context): BatterySample {
         val bm = ctx.getSystemService(Context.BATTERY_SERVICE) as BatteryManager
         val intent: Intent? = ctx.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
@@ -50,6 +69,7 @@ object BatteryCollector {
             technology = intent?.getStringExtra(BatteryManager.EXTRA_TECHNOLOGY) ?: "?",
             health = healthName(healthInt),
             chargingCycles = cycles,
+            designCapacityMah = designCapacityMah(ctx),
         )
     }
 

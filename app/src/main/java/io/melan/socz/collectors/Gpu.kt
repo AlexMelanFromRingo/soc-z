@@ -3,6 +3,7 @@ package io.melan.socz.collectors
 import android.content.Context
 import android.opengl.EGL14
 import android.opengl.GLES20
+import java.io.File
 
 data class GpuInfo(
     val openGlVendor: String,
@@ -21,6 +22,14 @@ data class GpuInfo(
     val adrenoModel: Int?,
     /** Vulkan API version we managed to query, or null if vk not loadable. */
     val vulkanApiVersion: String?,
+)
+
+/** Live GPU clock read from vendor sysfs (kgsl for Adreno, devfreq otherwise). */
+data class GpuFreqSample(
+    val curMhz: Long,
+    val minMhz: Long,
+    val maxMhz: Long,
+    val busyPercent: Int?,   // Adreno-only; null where the kernel doesn't expose it
 )
 
 object GpuCollector {
@@ -127,16 +136,61 @@ object GpuCollector {
         val features = ctx.packageManager.systemAvailableFeatures
             .filter { it.name == "android.hardware.vulkan.version" || it.name == "android.hardware.vulkan.level" }
         val ver = features.firstOrNull { it.name == "android.hardware.vulkan.version" } ?: return null
-        val v = ver.version
+        val level = features.firstOrNull { it.name == "android.hardware.vulkan.level" }?.version ?: 0
+        return "${decodeVulkanVersion(ver.version)} (level $level)"
+    }
+
+    /** VK_MAKE_API_VERSION packing: 10-bit major/minor, 12-bit patch. */
+    internal fun decodeVulkanVersion(v: Int): String {
         val major = (v ushr 22) and 0x3FF
         val minor = (v ushr 12) and 0x3FF
         val patch = v and 0xFFF
-        val level = features.firstOrNull { it.name == "android.hardware.vulkan.level" }?.version ?: 0
-        return "$major.$minor.$patch (level $level)"
+        return "$major.$minor.$patch"
     }
 
-    private fun parseAdreno(renderer: String): Int? {
+    internal fun parseAdreno(renderer: String): Int? {
         val m = Regex("Adreno.*?(\\d{3,})").find(renderer) ?: return null
         return m.groupValues[1].toIntOrNull()
     }
+
+    /* ------------------------- live clock ------------------------- */
+
+    /**
+     * Current/min/max GPU clock. Tries the Adreno kgsl node first, then any
+     * devfreq device whose name looks GPU-ish (Mali and most others). All of
+     * this is vendor sysfs — null on devices where SELinux hides the nodes,
+     * and the UI simply omits the card.
+     */
+    fun sampleFrequency(): GpuFreqSample? = readKgsl() ?: readDevfreq()
+
+    private fun readKgsl(): GpuFreqSample? {
+        val base = File("/sys/class/kgsl/kgsl-3d0")
+        val curHz = readLong(File(base, "gpuclk")) ?: return null
+        val busy = runCatching {
+            File(base, "gpu_busy_percentage").readText().trim().removeSuffix("%").trim().toInt()
+        }.getOrNull()
+        return GpuFreqSample(
+            curMhz = curHz / 1_000_000,
+            minMhz = (readLong(File(base, "devfreq/min_freq")) ?: 0L) / 1_000_000,
+            maxMhz = (readLong(File(base, "devfreq/max_freq")) ?: 0L) / 1_000_000,
+            busyPercent = busy,
+        )
+    }
+
+    private fun readDevfreq(): GpuFreqSample? {
+        val dirs = File("/sys/class/devfreq").listFiles() ?: return null
+        val gpuDir = dirs.firstOrNull { d ->
+            listOf("gpu", "mali", "kgsl").any { d.name.contains(it, ignoreCase = true) }
+        } ?: return null
+        val curHz = readLong(File(gpuDir, "cur_freq")) ?: return null
+        return GpuFreqSample(
+            curMhz = curHz / 1_000_000,
+            minMhz = (readLong(File(gpuDir, "min_freq")) ?: 0L) / 1_000_000,
+            maxMhz = (readLong(File(gpuDir, "max_freq")) ?: 0L) / 1_000_000,
+            busyPercent = null,
+        )
+    }
+
+    private fun readLong(f: File): Long? =
+        runCatching { f.readText().trim().toLong() }.getOrNull()
 }

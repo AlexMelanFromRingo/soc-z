@@ -31,7 +31,7 @@ Each domain lives in one file and exposes one object with a `read(…)` or
 |---|---|---|
 | `SocCollector` | `read(): SocInfo` | static, read once |
 | `CpuCollector` | `sample(): CpuSample` | live, polled |
-| `GpuCollector` | `read(ctx): GpuInfo` | static, read once (creates an EGL context + Vulkan instance) |
+| `GpuCollector` | `read(ctx): GpuInfo` + `sampleFrequency(): GpuFreqSample?` | static info read once (creates an EGL context + Vulkan instance); clock polled from vendor sysfs |
 | `MemoryCollector` | `sample(ctx): MemorySample` | live, polled |
 | `BatteryCollector` | `sample(ctx): BatterySample` | live, polled |
 | `DisplayCollector` | `read(ctx): List<DisplayInfo>` | live, polled (state/rotation change) |
@@ -47,6 +47,10 @@ Conventions:
   vendor kernels differ wildly in which sysfs nodes exist and are readable.
 - All units are encoded in the field name (`curMhz`, `tempMilliC`,
   `capacityRemainUah`, `energyCounterNwh`). Conversion happens in the UI.
+- Parsing of text formats lives in `internal` pure functions
+  (`parseMeminfo`, `parseAdreno`, `decodeVulkanVersion`, `cpuinfoField`,
+  `wifiStandardName`) so JVM unit tests in `app/src/test` can cover them
+  without a device.
 
 ### Polling: `tickerFlow`
 
@@ -109,6 +113,24 @@ OpenGL data only.
 The OpenGL strings are queried from a headless EGL14 context backed by a 4×4
 pbuffer, torn down immediately after reading.
 
+### Strings and localization
+
+All user-facing labels in the UI layer come from `res/values/strings.xml` via
+`stringResource(...)` — adding a translation is a matter of dropping in a
+`values-xx/strings.xml`. Two deliberate exceptions stay untranslated:
+
+- values that *are* data — `/proc/meminfo` keys, governor names, sensor type
+  strings, and the status/transport names emitted by collectors;
+- the shareable text report (below), which is meant to be compared across
+  devices and pasted into bug trackers.
+
+### The text report
+
+`report/Report.kt` (`ReportBuilder.build(ctx)`) runs every collector and
+formats one plain-text dump of the whole device. It is triggered by the share
+action on the Overview screen, built on `Dispatchers.IO` (the GPU probe spins
+up EGL + Vulkan), and handed to the system share sheet via `ACTION_SEND`.
+
 ### UI layer
 
 - **`MainActivity`** hosts a `Scaffold` with a Material 3 `NavigationBar`
@@ -159,3 +181,5 @@ permissions take effect without any manual refresh.
   `vulkan` and `log` libraries.
 - Release: R8 minify + resource shrinking; signing config is read from
   `local.properties` and skipped if absent (see README).
+- CI: `.github/workflows/build.yml` runs `assembleDebug lintDebug
+  testDebugUnitTest` on every push/PR and uploads the debug APK artifact.

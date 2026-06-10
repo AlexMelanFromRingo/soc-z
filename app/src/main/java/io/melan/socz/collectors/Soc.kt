@@ -26,9 +26,7 @@ data class SocInfo(
 object SocCollector {
     fun read(): SocInfo {
         val cpuinfo = runCatching { File("/proc/cpuinfo").readText() }.getOrDefault("")
-        val firstBlock = cpuinfo.split("\n\n").firstOrNull().orEmpty()
-        fun field(name: String) = firstBlock.lineSequence()
-            .firstOrNull { it.startsWith(name) }?.substringAfter(":")?.trim().orEmpty()
+        fun field(name: String) = cpuinfoField(cpuinfo, name)
 
         val features = field("Features").split(' ').filter { it.isNotBlank() }
         return SocInfo(
@@ -48,6 +46,13 @@ object SocCollector {
             buildPlatform = getSysProp("ro.board.platform") ?: "unknown",
             coreCount = Runtime.getRuntime().availableProcessors(),
         )
+    }
+
+    /** Value of [name] in the first processor block of /proc/cpuinfo, or "". */
+    internal fun cpuinfoField(cpuinfo: String, name: String): String {
+        val firstBlock = cpuinfo.split("\n\n").firstOrNull().orEmpty()
+        return firstBlock.lineSequence()
+            .firstOrNull { it.startsWith(name) }?.substringAfter(":")?.trim().orEmpty()
     }
 
     private fun getSysProp(name: String): String? = try {

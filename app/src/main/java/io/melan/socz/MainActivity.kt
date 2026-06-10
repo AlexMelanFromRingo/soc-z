@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -22,6 +23,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -52,7 +54,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private data class Tab(val route: String, val label: String, val icon: ImageVector)
+private data class Tab(val route: String, @StringRes val labelRes: Int, val icon: ImageVector)
 
 @Composable
 private fun SocZApp() {
@@ -60,17 +62,15 @@ private fun SocZApp() {
     val entry by nav.currentBackStackEntryAsState()
     val current = entry?.destination?.route
 
-    // Nine tabs is a lot for the bottom bar — we cap visible to 5 most useful and let
-    // the rest be reached by scrolling. Android M3 NavigationBar wraps to a horizontal
-    // scroller automatically when count > 5 only on tablets, so on phones we choose.
-    // The five most useful for "what's in this phone" are: Overview, CPU, GPU, Memory, Battery.
+    // Nine destinations is too many for a phone bottom bar — the five most useful
+    // for "what's in this phone" get tabs: Overview, CPU, GPU, Memory, Battery.
     // Sensors / Storage / Display / Network sit on a secondary nav under Overview as cards.
     val tabs = listOf(
-        Tab("overview", "Overview", Icons.Outlined.Dashboard),
-        Tab("cpu", "CPU", Icons.Outlined.DeveloperBoard),
-        Tab("gpu", "GPU", Icons.Outlined.Videocam),
-        Tab("memory", "Memory", Icons.Outlined.Memory),
-        Tab("battery", "Battery", Icons.Outlined.BatteryFull),
+        Tab("overview", R.string.tab_overview, Icons.Outlined.Dashboard),
+        Tab("cpu", R.string.tab_cpu, Icons.Outlined.DeveloperBoard),
+        Tab("gpu", R.string.tab_gpu, Icons.Outlined.Videocam),
+        Tab("memory", R.string.tab_memory, Icons.Outlined.Memory),
+        Tab("battery", R.string.tab_battery, Icons.Outlined.BatteryFull),
     )
 
     Scaffold(
@@ -88,8 +88,8 @@ private fun SocZApp() {
                                 }
                             }
                         },
-                        icon = { Icon(tab.icon, contentDescription = tab.label) },
-                        label = { Text(tab.label) },
+                        icon = { Icon(tab.icon, contentDescription = stringResource(tab.labelRes)) },
+                        label = { Text(stringResource(tab.labelRes)) },
                     )
                 }
             }
